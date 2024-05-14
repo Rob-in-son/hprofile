@@ -75,7 +75,7 @@ jobs:
           registry: ${{ secrets.REGISTRY }}
           repo: actapp
           region: ${{ env.AWS_REGION }}
-          tagS: latest,${{ github.run_number }}
+          tags: latest,${{ github.run_number }}
           daemon_off: false
           dockerfile: ./Dockerfile
           context: ./
