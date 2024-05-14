@@ -1,19 +1,26 @@
 name: Hprofile Actions
 on: workflow_dispatch
+env:
+  AWS_REGION: us-east-1 
+
 jobs: 
   Testing: 
     runs-on: ubuntu-latest
     steps:
+     
+      # Fetch code
       - name: Code Checkout
         uses: actions/checkout@v4
 
+      # Build code
       - name: Maven Test
         run: mvn install
-
+      
+      # Checkstyle 
       - name: Checkstyle
         run: mvn checkstyle:checkstyle
 
-      # Setup Java
+      # Setup Java for sonar-scanner
       - name: Setup Java 11
         uses: actions/setup-java@v4
         with:
@@ -46,3 +53,31 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+  BUILD_AND_PUBLISH: 
+    needs: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v4
+
+      - name: Update application.properties file
+        run: |
+          sed -i "s/^jdbc.username.*$/jdbc.username\=${{ secrets.RDS_USER }}/" src/main/resources/application.properties
+          sed -i "s/^jdbc.password.*$/jdbc.password\=${{ secrets.RDS_PASS }}/" src/main/resources/application.properties
+          sed -i "s/db01/${{ secrets.RDS_ENDPOINT }}/" src/main/resources/application.properties
+
+      - name: upload image to ECR
+        uses: appleboy/docker-ecr-action@master
+        with:
+          access_key: ${{ secrets.aws_access_key_id }}
+          secret_key: ${{ secrets.aws_secret_access_key }}
+          registry: ${{ secrets.registry }}
+          repo: actapp
+          region: ${{env.AWS_REGION}}
+          auto_tag: latest,${{ github.run_number }}
+          daemon_off: false
+          dockerfile: ./Dockerfile
+          context: ./
+      
+      
